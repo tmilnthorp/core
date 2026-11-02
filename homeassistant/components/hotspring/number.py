@@ -49,6 +49,7 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
     """Defines a Hot Spring number entity."""
 
     entity_description: NumberEntityDescription
+    _pending_target: float | None = None
 
     def __init__(
         self,
@@ -100,6 +101,8 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
     @override
     def native_value(self) -> float | None:
         """Return the current target temperature."""
+        if self._pending_target is not None:
+            return self._pending_target
         return self.coordinator.data.heater.set_temperature
 
     @hotspring_exception_handler
@@ -107,5 +110,14 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the target temperature."""
         target = round(value / self.native_step) * self.native_step
-        await self.coordinator.hotspring.set_temperature(target)
+        # The command is relayed to the spa over LoRa and can take seconds.
+        self._pending_target = target
+        self.async_write_ha_state()
+        try:
+            await self.coordinator.hotspring.set_temperature(target)
+        except BaseException:
+            self._pending_target = None
+            self.async_write_ha_state()
+            raise
+        self._pending_target = None
         self.coordinator.async_set_updated_data(self.coordinator.data)

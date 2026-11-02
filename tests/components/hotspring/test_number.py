@@ -65,6 +65,50 @@ async def test_set_target_temperature(
     assert state.state == "37.8"
 
 
+async def test_set_target_temperature_optimistic(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_hotspring: MagicMock,
+) -> None:
+    """Test the requested target is shown while the command is in flight."""
+    states_in_flight: list[str] = []
+
+    async def set_temp_mock(value: float) -> None:
+        assert (state := hass.states.get(ENTITY_ID))
+        states_in_flight.append(state.state)
+
+    mock_hotspring.set_temperature.side_effect = set_temp_mock
+
+    await hass.services.async_call(
+        NUMBER_DOMAIN,
+        SERVICE_SET_VALUE,
+        {ATTR_ENTITY_ID: ENTITY_ID, ATTR_VALUE: 38},
+        blocking=True,
+    )
+
+    assert states_in_flight == ["37.8"]
+
+
+async def test_set_target_temperature_error_reverts(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_hotspring: MagicMock,
+) -> None:
+    """Test a failed command restores the spa's reported target."""
+    mock_hotspring.set_temperature.side_effect = HotSpringConnectionError
+
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            NUMBER_DOMAIN,
+            SERVICE_SET_VALUE,
+            {ATTR_ENTITY_ID: ENTITY_ID, ATTR_VALUE: 38},
+            blocking=True,
+        )
+
+    assert (state := hass.states.get(ENTITY_ID))
+    assert state.state == "40.0"
+
+
 @pytest.mark.parametrize(
     ("exception", "match"),
     [
