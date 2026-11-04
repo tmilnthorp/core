@@ -1,5 +1,10 @@
 {
   "entity": {
+    "climate": {
+      "heater": {
+        "default": "mdi:hot-tub"
+      }
+    },
     "select": {
       "heating_mode": {
         "default": "mdi:radiator"

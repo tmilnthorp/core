@@ -7,6 +7,7 @@ from .coordinator import HotSpringConfigEntry, HotSpringDataUpdateCoordinator
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
+    Platform.CLIMATE,
     Platform.LIGHT,
     Platform.NUMBER,
     Platform.SELECT,

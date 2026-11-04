@@ -2,30 +2,21 @@
 
 from typing import override
 
-from hotspring import TemperatureUnit
-
 from homeassistant.components.number import (
     NumberDeviceClass,
     NumberEntity,
     NumberEntityDescription,
 )
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import HotSpringConfigEntry, HotSpringDataUpdateCoordinator
+from .deprecation import async_should_create_deprecated_entity
 from .entity import HotSpringEntity
-from .helpers import hotspring_exception_handler
+from .helpers import SetpointRange, hotspring_exception_handler, setpoint_range
 
 PARALLEL_UPDATES = 1
-
-MIN_TEMP_FAHRENHEIT = 80.0
-MAX_TEMP_FAHRENHEIT = 104.0
-STEP_FAHRENHEIT = 1.0
-
-MIN_TEMP_CELSIUS = 26.0
-MAX_TEMP_CELSIUS = 40.0
-STEP_CELSIUS = 0.5
 
 TARGET_TEMPERATURE_DESCRIPTION = NumberEntityDescription(
     key="target_temperature",
@@ -40,9 +31,20 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Hot Spring number entities."""
-    async_add_entities(
-        [HotSpringNumberEntity(entry.runtime_data, TARGET_TEMPERATURE_DESCRIPTION)]
-    )
+    coordinator = entry.runtime_data
+    # Superseded by the climate entity.
+    if async_should_create_deprecated_entity(
+        hass,
+        config_entry_id=entry.entry_id,
+        platform_domain=Platform.NUMBER,
+        entity_unique_id=(
+            f"{coordinator.data.info.mac_address}_{TARGET_TEMPERATURE_DESCRIPTION.key}"
+        ),
+        translation_key="deprecated_number_target_temperature",
+    ):
+        async_add_entities(
+            [HotSpringNumberEntity(coordinator, TARGET_TEMPERATURE_DESCRIPTION)]
+        )
 
 
 class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
@@ -60,41 +62,33 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
         self.entity_description = description
 
     @property
-    def _is_celsius(self) -> bool:
-        """Return True if the spa is configured in Celsius."""
-        return self.coordinator.data.heater.temperature_unit is TemperatureUnit.CELSIUS
+    def _range(self) -> SetpointRange:
+        """Return the target temperature limits of the spa."""
+        return setpoint_range(self.coordinator.data)
 
     @property
     @override
     def native_unit_of_measurement(self) -> str:
         """Return the unit of measurement."""
-        if self._is_celsius:
-            return UnitOfTemperature.CELSIUS
-        return UnitOfTemperature.FAHRENHEIT
+        return self._range.unit
 
     @property
     @override
     def native_min_value(self) -> float:
         """Return the minimum value."""
-        if self._is_celsius:
-            return MIN_TEMP_CELSIUS
-        return MIN_TEMP_FAHRENHEIT
+        return self._range.min_temp
 
     @property
     @override
     def native_max_value(self) -> float:
         """Return the maximum value."""
-        if self._is_celsius:
-            return MAX_TEMP_CELSIUS
-        return MAX_TEMP_FAHRENHEIT
+        return self._range.max_temp
 
     @property
     @override
     def native_step(self) -> float:
         """Return the step value."""
-        if self._is_celsius:
-            return STEP_CELSIUS
-        return STEP_FAHRENHEIT
+        return self._range.step
 
     @property
     @override

@@ -17,9 +17,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from . import setup_with_selected_platforms
+from . import register_entity, setup_with_selected_platforms
 
 ENTITY_ID = "number.connectedspa_ddeeff_target_temperature"
+
+
+@pytest.fixture(autouse=True)
+def register_deprecated_number(entity_registry: er.EntityRegistry) -> None:
+    """Register the deprecated number, which is only kept for existing installs."""
+    register_entity(entity_registry, Platform.NUMBER, "target_temperature")
 
 
 async def test_number_state(

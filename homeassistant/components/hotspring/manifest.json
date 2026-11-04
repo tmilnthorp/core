@@ -1,6 +1,7 @@
 {
   "domain": "hotspring",
   "name": "Hot Spring",
+  "after_dependencies": ["automation", "script"],
   "categories": ["water.pools_spas"],
   "codeowners": ["@Moustachauve"],
   "config_flow": true,
