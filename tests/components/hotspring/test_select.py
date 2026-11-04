@@ -25,12 +25,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from . import setup_with_selected_platforms
+from . import register_entity, setup_with_selected_platforms
 
 JET_1_ENTITY_ID = "select.connectedspa_ddeeff_jet_1"
 HEATING_MODE_ENTITY_ID = "select.connectedspa_ddeeff_heating_mode"
 
 
+@pytest.fixture
+def register_deprecated_select(entity_registry: er.EntityRegistry) -> None:
+    """Register the deprecated select, which is only kept for existing installs."""
+    register_entity(entity_registry, Platform.SELECT, "heating_mode")
+
+
+@pytest.mark.usefixtures("register_deprecated_select")
 @pytest.mark.usefixtures("mock_hotspring")
 async def test_select_state(
     hass: HomeAssistant,
@@ -49,6 +56,7 @@ async def test_select_state(
     await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
 
 
+@pytest.mark.usefixtures("register_deprecated_select")
 @pytest.mark.parametrize(
     ("entity_id", "option", "method_name", "expected_args"),
     [
@@ -153,6 +161,7 @@ async def test_unsupported_entities_not_added(
     assert not entity_registry.async_is_registered(HEATING_MODE_ENTITY_ID)
 
 
+@pytest.mark.usefixtures("register_deprecated_select")
 @pytest.mark.usefixtures("mock_hotspring")
 async def test_heating_mode_without_heatpump(
     hass: HomeAssistant,

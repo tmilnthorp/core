@@ -35,6 +35,21 @@
         "name": "Spa connected"
       }
     },
+    "climate": {
+      "heater": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "auto_saver": "Auto saver",
+              "auto_with_boost": "Auto with boost",
+              "chill": "Chill",
+              "heat_saver": "Heat saver",
+              "heat_with_boost": "Heat with boost"
+            }
+          }
+        }
+      }
+    },
     "light": {
       "light_zone": {
         "name": "Light zone {zone}"
@@ -49,11 +64,11 @@
       "heating_mode": {
         "name": "Heating mode",
         "state": {
-          "auto_saver": "Auto saver",
-          "auto_with_boost": "Auto with boost",
-          "chill": "Chill",
-          "heat_saver": "Heat saver",
-          "heat_with_boost": "Heat with boost"
+          "auto_saver": "[%key:component::hotspring::entity::climate::heater::state_attributes::preset_mode::state::auto_saver%]",
+          "auto_with_boost": "[%key:component::hotspring::entity::climate::heater::state_attributes::preset_mode::state::auto_with_boost%]",
+          "chill": "[%key:component::hotspring::entity::climate::heater::state_attributes::preset_mode::state::chill%]",
+          "heat_saver": "[%key:component::hotspring::entity::climate::heater::state_attributes::preset_mode::state::heat_saver%]",
+          "heat_with_boost": "[%key:component::hotspring::entity::climate::heater::state_attributes::preset_mode::state::heat_with_boost%]"
         }
       },
       "jet": {
@@ -95,6 +110,24 @@
     },
     "invalid_response": {
       "message": "Invalid response received from the Hot Spring API."
+    }
+  },
+  "issues": {
+    "deprecated_number_target_temperature": {
+      "description": "The `{entity_id}` ({entity_name}) number entity is deprecated and has been replaced by the target temperature of the spa's climate entity on the same device.\n\nUpdate any dashboards, templates, automations or scripts to use the climate entity, then disable `{entity_id}` and it is removed automatically on the next restart or reload of the integration.",
+      "title": "The Hot Spring target temperature number is deprecated"
+    },
+    "deprecated_number_target_temperature_scripts": {
+      "description": "The `{entity_id}` ({entity_name}) number entity is deprecated and has been replaced by the target temperature of the spa's climate entity on the same device.\n\nIt is still used in the following automations or scripts:\n{items}\n\nUpdate them to use the climate entity, then disable `{entity_id}` and it is removed automatically on the next restart or reload of the integration.",
+      "title": "[%key:component::hotspring::issues::deprecated_number_target_temperature::title%]"
+    },
+    "deprecated_select_heating_mode": {
+      "description": "The `{entity_id}` ({entity_name}) select entity is deprecated and has been replaced by the presets of the spa's climate entity on the same device.\n\nUpdate any dashboards, templates, automations or scripts to use the climate entity, then disable `{entity_id}` and it is removed automatically on the next restart or reload of the integration.",
+      "title": "The Hot Spring heating mode select is deprecated"
+    },
+    "deprecated_select_heating_mode_scripts": {
+      "description": "The `{entity_id}` ({entity_name}) select entity is deprecated and has been replaced by the presets of the spa's climate entity on the same device.\n\nIt is still used in the following automations or scripts:\n{items}\n\nUpdate them to use the climate entity, then disable `{entity_id}` and it is removed automatically on the next restart or reload of the integration.",
+      "title": "[%key:component::hotspring::issues::deprecated_select_heating_mode::title%]"
     }
   }
 }
