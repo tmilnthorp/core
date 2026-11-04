@@ -1,5 +1,6 @@
 """Support for Hot Spring number entities."""
 
+from datetime import datetime, timedelta
 from typing import override
 
 from hotspring import TemperatureUnit
@@ -10,9 +11,11 @@ from homeassistant.components.number import (
     NumberEntityDescription,
 )
 from homeassistant.const import UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_call_later
 
+from .const import SCAN_INTERVAL
 from .coordinator import HotSpringConfigEntry, HotSpringDataUpdateCoordinator
 from .entity import HotSpringEntity
 from .helpers import hotspring_exception_handler
@@ -26,6 +29,9 @@ STEP_FAHRENHEIT = 1.0
 MIN_TEMP_CELSIUS = 26.0
 MAX_TEMP_CELSIUS = 40.0
 STEP_CELSIUS = 0.5
+
+# A LoRa round trip to the spa plus one poll, with margin.
+PENDING_TARGET_TIMEOUT = SCAN_INTERVAL + timedelta(seconds=30)
 
 TARGET_TEMPERATURE_DESCRIPTION = NumberEntityDescription(
     key="target_temperature",
@@ -50,6 +56,7 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
 
     entity_description: NumberEntityDescription
     _pending_target: float | None = None
+    _pending_target_timer: CALLBACK_TYPE | None = None
 
     def __init__(
         self,
@@ -110,14 +117,47 @@ class HotSpringNumberEntity(HotSpringEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the target temperature."""
         target = round(value / self.native_step) * self.native_step
-        # The command is relayed to the spa over LoRa and can take seconds.
+        # The HNA can acknowledge the command before the spa applies it over
+        # LoRa, so keep showing the target until a poll reports it.
+        self._clear_pending_target()
         self._pending_target = target
+        self._pending_target_timer = async_call_later(
+            self.hass, PENDING_TARGET_TIMEOUT, self._pending_target_expired
+        )
         self.async_write_ha_state()
         try:
             await self.coordinator.hotspring.set_temperature(target)
         except BaseException:
-            self._pending_target = None
+            self._clear_pending_target()
             self.async_write_ha_state()
             raise
-        self._pending_target = None
         self.coordinator.async_set_updated_data(self.coordinator.data)
+
+    @callback
+    @override
+    def _handle_coordinator_update(self) -> None:
+        """Drop the pending target once the spa reports it."""
+        if self._pending_target == self.coordinator.data.heater.set_temperature:
+            self._clear_pending_target()
+        super()._handle_coordinator_update()
+
+    @override
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel the pending target timer."""
+        self._clear_pending_target()
+        await super().async_will_remove_from_hass()
+
+    @callback
+    def _pending_target_expired(self, _now: datetime) -> None:
+        """Fall back to the reported target when the spa never confirms."""
+        self._pending_target_timer = None
+        self._clear_pending_target()
+        self.async_write_ha_state()
+
+    @callback
+    def _clear_pending_target(self) -> None:
+        """Forget the pending target and cancel its timer."""
+        if self._pending_target_timer is not None:
+            self._pending_target_timer()
+            self._pending_target_timer = None
+        self._pending_target = None
